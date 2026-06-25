@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VaultFS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css"/>
+<style>
+:root{
+  --bg:#ffffff;--surface:#f8f8f7;--surface2:#f0efed;--border:#e8e6e3;--border2:#d4d1cd;
+  --text:#1a1a18;--text2:#5c5a57;--text3:#9b9895;
+  --accent:#2563eb;--accent-bg:#eff6ff;--accent-border:#bfdbfe;
+  --success:#16a34a;--success-bg:#f0fdf4;--success-border:#bbf7d0;
+  --danger:#dc2626;--danger-bg:#fef2f2;--danger-border:#fecaca;
+  --warning:#d97706;--warning-bg:#fffbeb;--warning-border:#fde68a;
+  --yellow:#eab308;--purple:#7c3aed;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Inter',sans-serif;
+  --radius:6px;--radius-lg:10px;--radius-xl:14px;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 4px 16px rgba(0,0,0,.08),0 1px 4px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+/* ── LAYOUT ── */
+#shell{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#titlebar{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;height:44px}
+#wordmark{display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid var(--border);height:100%;font-weight:600;font-size:13px;letter-spacing:-.01em;color:var(--text);flex-shrink:0}
+#wordmark i{color:var(--accent);font-size:16px}
+#tb-path{flex:1;display:flex;align-items:center;gap:4px;padding:0 12px;overflow:hidden}
+#pathcrumb{display:flex;align-items:center;gap:2px;overflow:hidden;flex:1}
+.crumb{font-size:12px;color:var(--text2);cursor:pointer;padding:2px 4px;border-radius:4px;white-space:nowrap}
+.crumb.crumb-drop-target{background:var(--success-bg);outline:1.5px dashed var(--success);outline-offset:-1px}
+.crumb-chevron{display:inline-flex;align-items:center;cursor:pointer;color:var(--text3);padding:2px;border-radius:4px;margin:0 -2px}
+.crumb-chevron:hover{color:var(--text2);background:var(--surface2)}
+.crumb-chevron i{font-size:11px}
+.crumb-dropdown{position:fixed;z-index:200;min-width:160px;max-height:280px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:4px}
+.crumb:hover{color:var(--text);background:var(--surface2)}
+.crumb.last{color:var(--text);font-weight:500}
+.crumb-sep{color:var(--text3);font-size:11px;flex-shrink:0}
+#tb-actions{display:flex;align-items:center;gap:4px;padding:0 10px;border-left:1px solid var(--border);height:100%;flex-shrink:0}
+.tb-btn{display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text2);font-size:12px;font-family:var(--sans);cursor:pointer;white-space:nowrap;transition:all .12s}
+.tb-btn:hover{color:var(--text);border-color:var(--border2);background:var(--surface)}
+.tb-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tb-btn.primary:hover{background:#1d4ed8;border-color:#1d4ed8}
+.tb-btn i{font-size:14px}
+/* ── TABS ── */
+#tabbar{display:flex;align-items:flex-end;gap:0;padding:6px 12px 0;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;height:40px;overflow-x:auto}
+#tab-list{display:flex;align-items:flex-end;gap:0;flex-shrink:0}
+.tab{display:flex;align-items:center;gap:6px;padding:0 12px;height:32px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;font-size:12px;color:var(--text2);white-space:nowrap;transition:all .1s;flex-shrink:0}
+.tab:hover{color:var(--text);background:var(--bg)}
+.tab.on{background:var(--bg);border-color:var(--border);border-bottom-color:var(--bg);color:var(--text)}
+.tab i{font-size:12px}
+.tab-x{opacity:0;font-size:10px;padding:1px 2px;border-radius:3px;margin-left:2px;line-height:1}
+.tab:hover .tab-x{opacity:.5}
+.tab-x:hover{opacity:1!important;background:var(--surface2)}
+.new-tab-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:none;cursor:pointer;color:var(--text3);border-radius:4px;margin-left:4px;margin-bottom:3px;flex-shrink:0}
+.new-tab-btn:hover{color:var(--text2);background:var(--surface2)}
+/* ── BODY ── */
+#workspace{display:flex;flex:1;overflow:hidden}
+/* ── SIDEBAR ── */
+#sidebar{width:200px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;background:var(--surface)}
+.sb-section{padding:12px 8px 4px}
+.sb-label{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:0 8px 4px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer;color:var(--text2);font-size:12px;transition:all .1s;user-select:none}
+.sb-item:hover{background:var(--surface2);color:var(--text)}
+.sb-item.active{background:var(--accent-bg);color:var(--accent)}
+.sb-item i{font-size:14px;flex-shrink:0}
+.sb-item .badge{margin-left:auto;font-size:10px;background:var(--surface2);color:var(--text3);padding:1px 5px;border-radius:8px}
+.sb-divider{height:1px;background:var(--border);margin:8px 8px}
+/* ── MAIN ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#col-header{display:flex;align-items:center;padding:0 16px;height:32px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;font-size:11px;color:var(--text3);font-weight:500}
+#col-header .col-name{flex:1}
+.col-meta-h{display:flex;gap:0}
+.col-meta-h span{text-align:right}
+#file-list{flex:1;overflow-y:auto;position:relative}
+#file-list.drag-over{outline:2px dashed var(--accent);outline-offset:-2px;background:var(--accent-bg)}
+.file-row{display:flex;align-items:center;padding:0 16px;height:36px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .08s;gap:10px}
+.file-row:hover{background:var(--surface)}
+.file-row.sel{background:var(--accent-bg)}
+.file-row.drop-target{background:var(--success-bg);outline:1.5px dashed var(--success);outline-offset:-1.5px}
+.file-row.cut-pending{opacity:0.45}
+.ficon-thumb{width:18px;height:18px;border-radius:3px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)}
+.star-badge{color:var(--yellow);font-size:12px;margin-left:-4px;flex-shrink:0}
+.file-row .ficon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.file-row .fname{flex:1;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-row .fname.dir{color:var(--text);font-weight:500}
+.file-row .fsize{width:76px;text-align:right;font-size:11px;color:var(--text3);font-family:var(--mono)}
+.file-row .fmod{width:110px;text-align:right;font-size:11px;color:var(--text3);font-family:var(--mono)}
+.file-row .ftag-cell{width:72px;text-align:right}
+.ftag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:500}
+.ftag.docs{background:#eff6ff;color:#2563eb}
+.ftag.work{background:#f0fdf4;color:#16a34a}
+.ftag.media{background:#faf5ff;color:#7c3aed}
+.ftag.archive{background:#fff7ed;color:#ea580c}
+.ftag.personal{background:#fdf2f8;color:#db2777}
+.ftag.user{background:var(--surface2);color:var(--text2)}
+/* ── EMPTY STATE ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:8px;color:var(--text3)}
+.tpl-card{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:12px;color:var(--text2);transition:all .1s}
+.tpl-card:hover{border-color:var(--accent);color:var(--text)}
+.tpl-card.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.tpl-card i{font-size:15px;flex-shrink:0}
+.empty-state i{font-size:32px;color:var(--border2)}
+.empty-state p{font-size:12px}
+/* ── STATUS BAR ── */
+#statusbar{display:flex;align-items:center;gap:12px;padding:0 14px;height:24px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;font-size:11px;color:var(--text3);font-family:var(--mono)}
+#statusbar .sb-sep{color:var(--border2)}
+/* ── TERMINAL ── */
+#terminal{border-top:1px solid var(--border);background:var(--bg);flex-shrink:0}
+#term-toggle{display:flex;align-items:center;gap:6px;padding:5px 14px;cursor:pointer;font-size:11px;color:var(--text3);user-select:none;border-bottom:1px solid transparent;transition:border-color .1s}
+#term-toggle:hover{color:var(--text2)}
+#term-toggle.open{border-bottom-color:var(--border)}
+#term-body{display:none;padding:6px 10px 8px}
+#term-body.open{display:block}
+#term-out{font-family:var(--mono);font-size:11.5px;max-height:100px;overflow-y:auto;margin-bottom:4px;line-height:1.6}
+.tl{color:var(--text2)}.tl.ok{color:var(--success)}.tl.err{color:var(--danger)}.tl.warn{color:var(--warning)}.tl.dim{color:var(--text3)}
+#term-row{display:flex;align-items:center;gap:6px}
+#term-ps{font-family:var(--mono);font-size:11.5px;color:var(--text3);white-space:nowrap}
+#term-in{flex:1;font-family:var(--mono);font-size:11.5px;background:none;border:none;outline:none;color:var(--text)}
+/* ── OVERLAYS ── */
+.overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.35);align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.overlay.open{display:flex}
+.modal{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);width:520px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-header h2{font-size:14px;font-weight:600;flex:1;color:var(--text)}
+.modal-header .modal-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.modal-header .modal-icon.lock{background:var(--accent-bg);color:var(--accent)}
+.modal-header .modal-icon.unlock{background:var(--success-bg);color:var(--success)}
+.modal-header .modal-icon.edit{background:var(--surface2);color:var(--text2)}
+.modal-body{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.modal-footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0}
+/* ── FORM ── */
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.02em}
+.field .desc{font-size:11px;color:var(--text3);line-height:1.5}
+.field-row{display:flex;gap:6px}
+.field input,.field select,.field textarea{font-family:var(--sans);font-size:12.5px;color:var(--text);background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;outline:none;transition:border-color .12s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.field input[type=password]{font-family:var(--mono)}
+.field textarea{resize:none;font-family:var(--mono);font-size:11px;min-height:90px}
+/* ── STRENGTH ── */
+#strength-row{display:flex;align-items:center;gap:8px}
+#strength-bar{flex:1;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+#strength-fill{height:100%;width:0;transition:width .2s,background .2s;border-radius:2px}
+#strength-text{font-size:11px;color:var(--text3);white-space:nowrap;min-width:80px;text-align:right}
+/* ── LOG ── */
+#ex-log,#im-log{font-family:var(--mono);font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;max-height:110px;overflow-y:auto;line-height:1.7;display:none}
+#ex-log.open,#im-log.open{display:block}
+.log-step{color:var(--text3)}.log-ok{color:var(--success)}.log-err{color:var(--danger)}
+/* ── ICON COLORS ── */
+.ic-dir{color:#d97706}
+.ic-js{color:#eab308}.ic-py{color:#3b82f6}.ic-css{color:#8b5cf6}.ic-html{color:#ef4444}
+.ic-img{color:#ec4899}.ic-zip{color:#f97316}.ic-pdf{color:#ef4444}.ic-doc{color:#2563eb}
+.ic-json{color:#10b981}.ic-default{color:var(--text3)}
+/* ── MISC ── */
+.divider{height:1px;background:var(--border);margin:4px 0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-family:var(--sans);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .12s;border:1px solid transparent}
+.btn-ghost{background:var(--bg);border-color:var(--border2);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--border2);background:var(--surface);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#1d4ed8}
+.btn-success{background:var(--success);color:#fff;border-color:var(--success)}
+.btn-success:hover{background:#15803d}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-border)}
+.btn-danger:hover{background:#fee2e2}
+.btn i{font-size:14px}
+.notice{display:flex;gap:8px;padding:10px 12px;border-radius:var(--radius);font-size:11.5px;line-height:1.5}
+.notice i{font-size:15px;flex-shrink:0;margin-top:1px}
+.notice.info{background:var(--accent-bg);color:#1e40af;border:1px solid var(--accent-border)}
+.notice.warn{background:var(--warning-bg);color:#92400e;border:1px solid var(--warning-border)}
+select option{background:var(--bg);color:var(--text)}
+/* ── CONTEXT MENU ── */
+#ctx-menu{position:fixed;z-index:200;min-width:200px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:4px;display:none;font-size:12.5px}
+#ctx-menu.open{display:block}
+.ctx-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text);white-space:nowrap}
+.ctx-item:hover{background:var(--surface2)}
+.ctx-item i{font-size:14px;width:16px;text-align:center;color:var(--text2);flex-shrink:0}
+.ctx-item span{flex:1}
+.ctx-item .ctx-shortcut{font-size:10.5px;color:var(--text3);font-family:var(--mono)}
+.ctx-item.danger{color:var(--danger)}
+.ctx-item.danger i{color:var(--danger)}
+.ctx-item.disabled{color:var(--text3);cursor:default}
+.ctx-item.disabled i{color:var(--text3)}
+.ctx-item.disabled:hover{background:none}
+.ctx-divider{height:1px;background:var(--border);margin:4px 6px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.ti-loader-2{display:inline-block;animation:spin 0.8s linear infinite}
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <!-- TITLEBAR -->
+  <div id="titlebar">
+    <div id="wordmark"><i class="ti ti-lock"></i> VaultFS</div>
+    <div id="tb-path">
+      <button class="tb-btn" onclick="navBack()" title="Back"><i class="ti ti-arrow-left"></i></button>
+      <button class="tb-btn" onclick="navUp()" title="Up"><i class="ti ti-arrow-up"></i></button>
+      <div id="pathcrumb"></div>
+    </div>
+    <div id="tb-actions">
+      <button class="tb-btn" onclick="openNewFolder()"><i class="ti ti-folder-plus"></i> New Folder</button>
+      <button class="tb-btn" onclick="openNewFile()"><i class="ti ti-file-plus"></i> New File</button>
+      <button class="tb-btn" onclick="triggerUpload()"><i class="ti ti-upload"></i> Upload</button>
+      <input id="upload-input" type="file" multiple style="display:none" onchange="handleUpload(this.files)"/>
+      <button class="tb-btn" onclick="openExport()"><i class="ti ti-lock"></i> Export</button>
+      <button class="tb-btn primary" onclick="openImport()"><i class="ti ti-lock-open"></i> Import</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tabbar">
+    <div id="tab-list"></div>
+    <button class="new-tab-btn" onclick="newTab()" title="New tab"><i class="ti ti-plus"></i></button>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div id="workspace">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sb-section">
+        <div class="sb-label">Locations</div>
+        <div class="sb-item" data-loc="/" onclick="go('/')"><i class="ti ti-home"></i> Home</div>
+        <div class="sb-item" data-loc="/docs" onclick="go('/docs')"><i class="ti ti-file-text"></i> Documents</div>
+        <div class="sb-item" data-loc="/images" onclick="go('/images')"><i class="ti ti-photo"></i> Images</div>
+        <div class="sb-item" data-loc="/code" onclick="go('/code')"><i class="ti ti-code"></i> Code</div>
+        <div class="sb-item" data-loc="/archive" onclick="go('/archive')"><i class="ti ti-archive"></i> Archive</div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-section">
+        <div class="sb-label">Filter by Tag</div>
+        <div class="sb-item" data-tag="work" onclick="ftag('work')"><i class="ti ti-briefcase"></i> Work</div>
+        <div class="sb-item" data-tag="docs" onclick="ftag('docs')"><i class="ti ti-file-description"></i> Documents</div>
+        <div class="sb-item" data-tag="personal" onclick="ftag('personal')"><i class="ti ti-user"></i> Personal</div>
+        <div class="sb-item" data-tag="media" onclick="ftag('media')"><i class="ti ti-camera"></i> Media</div>
+        <div class="sb-item" data-tag="archive" onclick="ftag('archive')"><i class="ti ti-box"></i> Archive</div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-section" id="sb-starred-section" style="display:none">
+        <div class="sb-label">Starred</div>
+        <div id="sb-starred-list"></div>
+      </div>
+      <div class="sb-divider" id="sb-recent-divider" style="display:none"></div>
+      <div class="sb-section" id="sb-recent-section" style="display:none">
+        <div class="sb-label">Recent</div>
+        <div id="sb-recent-list"></div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-section">
+        <div class="sb-label">Actions</div>
+        <div class="sb-item" onclick="openSearch()"><i class="ti ti-search"></i> Search Files</div>
+        <div class="sb-item" onclick="showTreeView()"><i class="ti ti-sitemap"></i> Tree View</div>
+        <div class="sb-item" onclick="clearTag()"><i class="ti ti-x"></i> Clear Filter</div>
+      </div>
+    </div>
+
+    <!-- MAIN FILE VIEW -->
+    <div id="main">
+      <div id="col-header">
+        <div class="col-name">Name</div>
+        <div class="col-meta-h">
+          <span style="width:76px">Size</span>
+          <span style="width:110px">Modified</span>
+          <span style="width:72px">Tag</span>
+        </div>
+      </div>
+      <div id="file-list" onclick="if(event.target===this)deselectAll()" oncontextmenu="handleContextMenu(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)"></div>
+    </div>
+  </div>
+
+  <!-- TERMINAL -->
+  <div id="terminal">
+    <div id="term-toggle" onclick="toggleTerm()">
+      <i class="ti ti-terminal-2" style="font-size:13px"></i>
+      <span>Terminal</span>
+      <i class="ti ti-chevron-up" id="term-chev" style="font-size:11px;margin-left:auto"></i>
+    </div>
+    <div id="term-body">
+      <div id="term-out"></div>
+      <div id="term-row">
+        <span id="term-ps">/$</span>
+        <input id="term-in" autocomplete="off" spellcheck="false" placeholder="ls, cd, mkdir, touch, write, rm, cat, find, tree, pwd, help" onkeydown="hcmd(event)"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div id="statusbar">
+    <span id="sb-path">/</span>
+    <span class="sb-sep">·</span>
+    <span id="sb-count">0 items</span>
+    <span class="sb-sep">·</span>
+    <span id="sb-sel">nothing selected</span>
+    <span style="flex:1"></span>
+    <span id="sb-storage">0 B used</span>
+    <span class="sb-sep">·</span>
+    <span id="sb-cipher">Hexagon Cipher Suite</span>
+  </div>
+</div>
+
+<!-- ── OVERLAYS ── -->
+
+<!-- EDITOR -->
+<div id="editor-ov" class="overlay" onclick="if(event.target===this)closeOv('editor-ov')">
+  <div class="modal" style="width:640px">
+    <div class="modal-header">
+      <div class="modal-icon edit"><i class="ti ti-file-pencil"></i></div>
+      <h2 id="ed-title">Edit File</h2>
+      <button class="btn btn-ghost" onclick="closeOv('editor-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <textarea id="ed-area" style="min-height:300px"></textarea>
+      </div>
+      <div style="font-size:11px;color:var(--text3)" id="ed-meta"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOv('editor-ov')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()"><i class="ti ti-device-floppy"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW -->
+<div id="preview-ov" class="overlay" onclick="if(event.target===this)closeOv('preview-ov')">
+  <div class="modal" style="width:600px;max-width:96vw">
+    <div class="modal-header">
+      <div class="modal-icon edit" id="preview-icon"><i class="ti ti-file"></i></div>
+      <h2 id="preview-title">file</h2>
+      <button class="btn btn-ghost" onclick="closeOv('preview-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="preview-body" style="align-items:center;justify-content:center;min-height:200px">
+    </div>
+    <div class="modal-footer">
+      <span id="preview-meta" style="font-size:11px;color:var(--text3);flex:1"></span>
+      <button class="btn btn-ghost" onclick="closeOv('preview-ov')">Close</button>
+      <button class="btn btn-primary" id="preview-download-btn" onclick="downloadCurrentPreview()"><i class="ti ti-download"></i> Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW FOLDER -->
+<div id="mkdir-ov" class="overlay" onclick="if(event.target===this)closeOv('mkdir-ov')">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <div class="modal-icon edit"><i class="ti ti-folder-plus"></i></div>
+      <h2>New Folder</h2>
+      <button class="btn btn-ghost" onclick="closeOv('mkdir-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Folder name</label>
+        <input id="mkdir-name" type="text" placeholder="untitled-folder" onkeydown="if(event.key==='Enter')doMkdir()"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOv('mkdir-ov')">Cancel</button>
+      <button class="btn btn-primary" onclick="doMkdir()"><i class="ti ti-folder-plus"></i> Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW FILE -->
+<div id="touch-ov" class="overlay" onclick="if(event.target===this)closeOv('touch-ov')">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <div class="modal-icon edit"><i class="ti ti-file-plus"></i></div>
+      <h2>New File</h2>
+      <button class="btn btn-ghost" onclick="closeOv('touch-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>File name</label>
+        <input id="touch-name" type="text" placeholder="notes.txt" onkeydown="if(event.key==='Enter')doTouch()"/>
+        <span class="desc">Extension determines the tag automatically.</span>
+      </div>
+      <div class="field">
+        <label>Template</label>
+        <div id="template-picker" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOv('touch-ov')">Cancel</button>
+      <button class="btn btn-primary" onclick="doTouch()"><i class="ti ti-file-plus"></i> Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAG PICKER -->
+<div id="tag-ov" class="overlay" onclick="if(event.target===this)closeOv('tag-ov')">
+  <div class="modal" style="width:340px">
+    <div class="modal-header">
+      <div class="modal-icon edit"><i class="ti ti-tag"></i></div>
+      <h2>Set Tag</h2>
+      <button class="btn btn-ghost" onclick="closeOv('tag-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="tag-picker-list" style="display:flex;flex-direction:column;gap:2px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div id="delete-ov" class="overlay" onclick="if(event.target===this)closeOv('delete-ov')">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <div class="modal-icon" style="background:var(--danger-bg);color:var(--danger)"><i class="ti ti-trash"></i></div>
+      <h2>Delete <span id="delete-target-name"></span>?</h2>
+      <button class="btn btn-ghost" onclick="closeOv('delete-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="delete-target-detail" style="font-size:12.5px;color:var(--text2);line-height:1.6"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOv('delete-ov')">Cancel</button>
+      <button class="btn" style="background:var(--danger);color:#fff" onclick="confirmDelete()"><i class="ti ti-trash"></i> Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div id="search-ov" class="overlay" onclick="if(event.target===this)closeOv('search-ov')">
+  <div class="modal" style="width:480px">
+    <div class="modal-header">
+      <div class="modal-icon edit"><i class="ti ti-search"></i></div>
+      <h2>Search Files</h2>
+      <button class="btn btn-ghost" onclick="closeOv('search-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <input id="search-q" type="text" placeholder="Search by name or path…" oninput="doSearch(this.value)"/>
+      </div>
+      <div id="search-results" style="display:flex;flex-direction:column;gap:2px;max-height:300px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div id="export-ov" class="overlay" onclick="if(event.target===this)closeOv('export-ov')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon lock"><i class="ti ti-lock"></i></div>
+      <h2>Export Encrypted Snapshot</h2>
+      <button class="btn btn-ghost" onclick="closeOv('export-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="notice warn">
+        <i class="ti ti-alert-triangle"></i>
+        <span>Store the output, key, and salt together in a safe place. Any missing piece makes the snapshot unrecoverable.</span>
+      </div>
+      <div class="field">
+        <label>Passphrase</label>
+        <div class="field-row">
+          <input id="ex-key" type="password" placeholder="Enter a strong passphrase" oninput="updateStrength(this.value)" style="flex:1"/>
+          <button class="btn btn-ghost" onclick="togglePass('ex-key')" title="Show/hide"><i class="ti ti-eye"></i></button>
+        </div>
+        <div id="strength-row">
+          <div id="strength-bar"><div id="strength-fill"></div></div>
+          <span id="strength-text">—</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Salt <span style="font-weight:400;color:var(--text3)">(optional — hardens key derivation)</span></label>
+        <div class="field-row">
+          <input id="ex-salt" type="text" placeholder="Random string — recommended" style="flex:1"/>
+          <button class="btn btn-ghost" onclick="genSalt()" title="Generate random salt"><i class="ti ti-refresh"></i> Generate</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div class="field" style="flex:1">
+          <label>Security Level</label>
+          <select id="ex-passes">
+            <option value="7">Standard — 7 passes</option>
+            <option value="12" selected>Enhanced — 12 passes</option>
+            <option value="20">Maximum — 20 passes</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1">
+          <label>Cipher Mode</label>
+          <select id="ex-mode">
+            <option value="cascade">Cascade (XOR stream)</option>
+            <option value="vigenere">Vigenère+ (substitution)</option>
+            <option value="transposition">Transposition (permutation)</option>
+            <option value="combined" selected>Combined (all three)</option>
+          </select>
+        </div>
+      </div>
+      <div id="ex-log"></div>
+      <div class="field" id="ex-output-field" style="display:none">
+        <label>Encrypted Output</label>
+        <textarea id="ex-area" readonly style="min-height:80px;font-size:10.5px;color:var(--text3);word-break:break-all"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOv('export-ov')">Close</button>
+      <button class="btn btn-ghost" id="ex-copy-btn" onclick="copyBlob('ex-area')" style="display:none"><i class="ti ti-copy"></i> Copy Output</button>
+      <button class="btn btn-primary" onclick="doExport()"><i class="ti ti-key"></i> Encrypt</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT -->
+<div id="import-ov" class="overlay" onclick="if(event.target===this)closeOv('import-ov')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon unlock"><i class="ti ti-lock-open"></i></div>
+      <h2>Import Encrypted Snapshot</h2>
+      <button class="btn btn-ghost" onclick="closeOv('import-ov')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="notice info">
+        <i class="ti ti-info-circle"></i>
+        <span>Use the same passphrase, salt, security level, and cipher mode that were used during export.</span>
+      </div>
+      <div class="field">
+        <label>Encrypted Snapshot</label>
+        <textarea id="io-area" placeholder="Paste encrypted string here…" style="min-height:80px;font-size:10.5px;word-break:break-all"></textarea>
+      </div>
+      <div class="field">
+        <label>Passphrase</label>
+        <div class="field-row">
+          <input id="im-key" type="password" placeholder="Passphrase used during export" style="flex:1"/>
+          <button class="btn btn-ghost" onclick="togglePass('im-key')"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Salt</label>
+        <input id="im-salt" type="text" placeholder="Salt used during export (leave blank if none was used)"/>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div class="field" style="flex:1">
+          <label>Security Level</label>
+          <select id="im-passes">
+            <option value="7">Standard — 7 passes</option>
+            <option value="12" selected>Enhanced — 12 passes</option>
+            <option value="20">Maximum — 20 passes</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1">
+          <label>Cipher Mode</label>
+          <select id="im-mode">
+            <option value="cascade">Cascade</option>
+            <option value="vigenere">Vigenère+</option>
+            <option value="transposition">Transposition</option>
+            <option value="combined" selected>Combined</option>
+          </select>
+        </div>
+      </div>
+      <div id="im-log"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOv('import-ov')">Cancel</button>
+      <button class="btn btn-success" onclick="doImport()"><i class="ti ti-check"></i> Decrypt & Restore</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   HEXAGON CIPHER SUITE
+═══════════════════════════════════════════════════════════ */
+const MAGIC='CFS2:';
+
+function deriveKey(key,salt){
+  if(!salt)return key;
+  let o='';
+  for(let i=0;i<Math.max(key.length,salt.length)*2;i++){
+    const k=key.charCodeAt(i%key.length),s=salt.charCodeAt(i%salt.length);
+    o+=String.fromCharCode(((k^s^(i*31))&0x7e)+1);
+  }
+  return o+key+salt;
+}
+
+function buildTable(key){
+  const k=[...key].map(c=>c.charCodeAt(0)&0xff);
+  const t=new Uint8Array(256);
+  for(let i=0;i<256;i++)t[i]=(k[i%k.length]*131+i*37+(i>>3))&0xff;
+  for(let r=0;r<12;r++)for(let i=0;i<256;i++){const j=(t[i]^t[(i+r*17)&0xff]^(i*7+r*3))&0xff;const tmp=t[i];t[i]=t[j];t[j]=tmp;}
+  return t;
+}
+
+function makeStream(table,len,offset){
+  let a=table[offset&0xff],b=table[(offset+64)&0xff],c=table[(offset+128)&0xff],d=table[(offset+192)&0xff];
+  const s=new Uint8Array(len);
+  for(let i=0;i<len;i++){const nx=(a^((b<<1)&0xff)^table[c&0xff]^(d>>1)^(i&0xff))&0xff;s[i]=nx;a=b;b=c;c=d;d=(nx^table[(nx*3+i)&0xff])&0xff;}
+  return s;
+}
+
+function cascadePass(bytes,key,enc,pi){
+  const t=buildTable(key+pi),n=bytes.length,off=(pi*37)&0xff;
+  if(enc){
+    const ksA=makeStream(t,n,off),p1=new Uint8Array(n);
+    for(let i=0;i<n;i++)p1[i]=bytes[i]^ksA[i];
+    const ksB=makeStream(buildTable(key+'B'+pi),n,(off+64)&0xff),prime=[97,131,167,199,233][pi%5],p2=new Uint8Array(n);
+    for(let i=0;i<n;i++)p2[i]=(p1[i]+((i*prime)&0xff)^ksB[i])&0xff;
+    const ksC=makeStream(buildTable((key+pi).split('').reverse().join('')),n,(off+128)&0xff),p3=new Uint8Array(n);
+    for(let i=0;i<n;i++){const sw=((p2[i]&0x0f)<<4)|((p2[i]&0xf0)>>4);p3[i]=sw^ksC[i];}
+    const kc=[...key].map(c=>c.charCodeAt(0)),p4=new Uint8Array(n);
+    for(let i=0;i<n;i++){const r=kc[i%kc.length]%8;p4[i]=((p3[i]<<r)|(p3[i]>>(8-r)))&0xff;}
+    return p4;
+  }else{
+    const kc=[...key].map(c=>c.charCodeAt(0)),d4=new Uint8Array(n);
+    for(let i=0;i<n;i++){const r=kc[i%kc.length]%8;d4[i]=((bytes[i]>>r)|(bytes[i]<<(8-r)))&0xff;}
+    const ksC=makeStream(buildTable((key+pi).split('').reverse().join('')),n,(off+128)&0xff),d3=new Uint8Array(n);
+    for(let i=0;i<n;i++){const ux=d4[i]^ksC[i];d3[i]=((ux&0x0f)<<4)|((ux&0xf0)>>4);}
+    const ksB=makeStream(buildTable(key+'B'+pi),n,(off+64)&0xff),prime=[97,131,167,199,233][pi%5],d2=new Uint8Array(n);
+    for(let i=0;i<n;i++)d2[i]=((d3[i]^ksB[i])-((i*prime)&0xff)+256)&0xff;
+    const ksA=makeStream(t,n,off),d1=new Uint8Array(n);
+    for(let i=0;i<n;i++)d1[i]=d2[i]^ksA[i];
+    return d1;
+  }
+}
+
+function vigenerePass(bytes,key,enc,pi){
+  const kc=[...key].map(c=>c.charCodeAt(0)),n=bytes.length,out=new Uint8Array(n);
+  for(let i=0;i<n;i++){const shift=(kc[i%kc.length]+Math.floor(i/kc.length)*7+pi*13)&0xff;out[i]=enc?(bytes[i]+shift)&0xff:(bytes[i]-shift+256)&0xff;}
+  return out;
+}
+
+// single pass — pads bytes up to a multiple of `cols`, permutes columns,
+// returns the (now padded) buffer. Column order varies per pass index so
+// each pass still scrambles differently, but `cols` itself stays fixed for
+// the whole run so the buffer length never grows pass-to-pass.
+function transpositionPass(bytes,key,enc,pi,cols){
+  const n=bytes.length;
+  const colOrder=[...Array(cols)].map((_,i)=>({idx:i,val:key.charCodeAt((i+pi*3)%key.length)})).sort((a,b)=>a.val-b.val).map(x=>x.idx);
+  const padLen=Math.ceil(n/cols)*cols;
+  const padded=new Uint8Array(padLen);padded.set(bytes);
+  const rows=padLen/cols,out=new Uint8Array(padLen);
+  if(enc){for(let c=0;c<cols;c++){const sc=colOrder[c];for(let r=0;r<rows;r++)out[c*rows+r]=padded[r*cols+sc];}}
+  else{for(let c=0;c<cols;c++){const dc=colOrder[c];for(let r=0;r<rows;r++)out[r*cols+dc]=padded[c*rows+r];}}
+  return out;
+}
+
+// One column count for the entire run, derived from the key — this keeps
+// the buffer length fixed after the first pad, so additional passes only
+// re-scramble (different colOrder per pi) without ever growing the output.
+// The 4-byte length prefix lets decrypt recover the exact original size
+// regardless of how much padding the fixed column count added.
+function transpositionCols(key){return 4+(key.charCodeAt(0)%9);} // 4-12
+function transpositionRun(bytes,key,enc,passes){
+  const cols=transpositionCols(key);
+  if(enc){
+    const n=bytes.length;
+    const withLen=new Uint8Array(4+n);
+    withLen[0]=(n>>>24)&0xff;withLen[1]=(n>>>16)&0xff;withLen[2]=(n>>>8)&0xff;withLen[3]=n&0xff;
+    withLen.set(bytes,4);
+    let cur=withLen;
+    for(let pi=0;pi<passes;pi++)cur=transpositionPass(cur,key,true,pi,cols);
+    return cur;
+  }else{
+    let cur=bytes;
+    for(let pi=passes-1;pi>=0;pi--)cur=transpositionPass(cur,key,false,pi,cols);
+    const n=(cur[0]<<24)|(cur[1]<<16)|(cur[2]<<8)|cur[3];
+    return cur.slice(4,4+n);
+  }
+}
+
+function runPasses(bytes,key,enc,passes,fn){
+  let cur=bytes;
+  const order=enc?[...Array(passes)].map((_,i)=>i):[...Array(passes)].map((_,i)=>passes-1-i);
+  for(const pi of order)cur=fn(cur,key,enc,pi);
+  return cur;
+}
+
+// ── COMPRESSION (gzip via native CompressionStream) ──
+async function gzipCompress(bytes){
+  const cs=new CompressionStream('gzip');
+  const writer=cs.writable.getWriter();
+  writer.write(bytes);writer.close();
+  const chunks=[];
+  const reader=cs.readable.getReader();
+  while(true){const {done,value}=await reader.read();if(done)break;chunks.push(value);}
+  const total=chunks.reduce((s,c)=>s+c.length,0);
+  const out=new Uint8Array(total);
+  let off=0;for(const c of chunks){out.set(c,off);off+=c.length;}
+  return out;
+}
+async function gzipDecompress(bytes){
+  const ds=new DecompressionStream('gzip');
+  const writer=ds.writable.getWriter();
+  writer.write(bytes);writer.close();
+  const chunks=[];
+  const reader=ds.readable.getReader();
+  while(true){const {done,value}=await reader.read();if(done)break;chunks.push(value);}
+  const total=chunks.reduce((s,c)=>s+c.length,0);
+  const out=new Uint8Array(total);
+  let off=0;for(const c of chunks){out.set(c,off);off+=c.length;}
+  return out;
+}
+const COMPRESSION_SUPPORTED=typeof CompressionStream!=='undefined';
+
+async function hexEncrypt(obj,key,salt,passes,mode,log){
+  const dk=deriveKey(key,salt);
+  let bytes=new TextEncoder().encode(MAGIC+JSON.stringify(obj));
+  log(`Plaintext: ${bytes.length} bytes`,'step');
+  let compressed=false;
+  if(COMPRESSION_SUPPORTED){
+    const gz=await gzipCompress(bytes);
+    if(gz.length<bytes.length){
+      bytes=gz;compressed=true;
+      log(`Compressed: ${bytes.length} bytes (gzip)`,'step');
+    }else{
+      log('Compression skipped — no size benefit','step');
+    }
+  }
+  // 1-byte flag prefix: 1 = gzip-compressed, 0 = raw
+  const flagged=new Uint8Array(bytes.length+1);
+  flagged[0]=compressed?1:0;
+  flagged.set(bytes,1);
+  bytes=flagged;
+  log(`Key derivation: mixed with salt (${salt.length} chars)`,'step');
+  log(`Mode: ${mode} | Passes: ${passes}`,'step');
+  const cm={cascade:cascadePass,vigenere:vigenerePass};
+  if(mode==='combined'){
+    log('Pass group 1/3: Cascade stream cipher','step');bytes=runPasses(bytes,dk,true,passes,cascadePass);
+    log('Pass group 2/3: Vigenère+ substitution','step');bytes=runPasses(bytes,dk,true,passes,vigenerePass);
+    log('Pass group 3/3: Transposition permutation','step');bytes=transpositionRun(bytes,dk,true,passes);
+  }else if(mode==='transposition'){
+    log(`Running ${passes} passes: transposition`,'step');bytes=transpositionRun(bytes,dk,true,passes);
+  }else{log(`Running ${passes} passes: ${mode}`,'step');bytes=runPasses(bytes,dk,true,passes,cm[mode]);}
+  let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));
+  const b64=btoa(bin);
+  log(`Output: ${b64.length} chars (base64-encoded)`,'ok');
+  return b64;
+}
+
+async function hexDecrypt(b64,key,salt,passes,mode,log){
+  const dk=deriveKey(key,salt);
+  const bin=atob(b64.trim());
+  let bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  log(`Ciphertext: ${bytes.length} bytes`,'step');
+  log(`Mode: ${mode} | Passes: ${passes}`,'step');
+  const cm={cascade:cascadePass,vigenere:vigenerePass};
+  if(mode==='combined'){
+    log('Inverse group 3/3: Transposition','step');bytes=transpositionRun(bytes,dk,false,passes);
+    log('Inverse group 2/3: Vigenère+','step');bytes=runPasses(bytes,dk,false,passes,vigenerePass);
+    log('Inverse group 1/3: Cascade','step');bytes=runPasses(bytes,dk,false,passes,cascadePass);
+  }else if(mode==='transposition'){
+    log(`Running ${passes} inverse passes: transposition`,'step');bytes=transpositionRun(bytes,dk,false,passes);
+  }else{log(`Running ${passes} inverse passes: ${mode}`,'step');bytes=runPasses(bytes,dk,false,passes,cm[mode]);}
+  if(bytes.length<1)throw new Error('Decryption failed — wrong passphrase, salt, level, or mode');
+  const wasCompressed=bytes[0]===1;
+  let payload=bytes.slice(1);
+  if(wasCompressed){
+    try{
+      payload=await gzipDecompress(payload);
+      log('Decompressed (gzip)','step');
+    }catch(e){
+      throw new Error('Decryption failed — wrong passphrase, salt, level, or mode');
+    }
+  }
+  const json=new TextDecoder().decode(payload);
+  if(!json.startsWith(MAGIC))throw new Error('Decryption failed — wrong passphrase, salt, level, or mode');
+  log('Header verified','ok');
+  return JSON.parse(json.slice(MAGIC.length));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FILESYSTEM
+═══════════════════════════════════════════════════════════ */
+const EI={md:'ti-file-text',txt:'ti-file-text',js:'ti-brand-javascript',css:'ti-file-code',html:'ti-brand-html5',py:'ti-brand-python',png:'ti-photo',jpg:'ti-photo',jpeg:'ti-photo',gif:'ti-photo',webp:'ti-photo',svg:'ti-photo',zip:'ti-file-zip',tar:'ti-file-zip',gz:'ti-file-zip',rar:'ti-file-zip',pdf:'ti-file-type-pdf',json:'ti-json',mp3:'ti-music',wav:'ti-music',m4a:'ti-music',mp4:'ti-movie',mov:'ti-movie',webm:'ti-movie',ts:'ti-file-type-ts',sh:'ti-terminal',docx:'ti-file-type-docx',doc:'ti-file-type-doc',xlsx:'ti-file-type-xls',csv:'ti-table',ppt:'ti-presentation',pptx:'ti-presentation'};
+const EC={js:'ic-js',ts:'ic-js',css:'ic-css',html:'ic-html',py:'ic-py',png:'ic-img',jpg:'ic-img',jpeg:'ic-img',gif:'ic-img',webp:'ic-img',svg:'ic-img',mp3:'ic-img',wav:'ic-img',m4a:'ic-img',mp4:'ic-img',mov:'ic-img',webm:'ic-img',zip:'ic-zip',tar:'ic-zip',gz:'ic-zip',rar:'ic-zip',pdf:'ic-pdf',md:'ic-doc',txt:'ic-doc',json:'ic-json',docx:'ic-doc',doc:'ic-doc',xlsx:'ic-doc',csv:'ic-doc'};
+const TE={md:'docs',txt:'docs',pdf:'docs',docx:'docs',doc:'docs',xlsx:'docs',csv:'docs',ppt:'docs',pptx:'docs',js:'work',css:'work',html:'work',py:'work',ts:'work',sh:'work',png:'media',jpg:'media',jpeg:'media',gif:'media',webp:'media',svg:'media',mp3:'media',wav:'media',m4a:'media',mp4:'media',mov:'media',webm:'media',zip:'archive',tar:'archive',gz:'archive',rar:'archive',json:'work'};
+const TEXT_EXTS=new Set(['md','txt','js','ts','css','html','py','sh','json','csv','xml','yml','yaml','svg']);
+const IMAGE_EXTS=new Set(['png','jpg','jpeg','gif','webp']);
+const AUDIO_EXTS=new Set(['mp3','wav','m4a']);
+const VIDEO_EXTS=new Set(['mp4','mov','webm']);
+const MIME={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',svg:'image/svg+xml',pdf:'application/pdf',mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',zip:'application/zip',json:'application/json',csv:'text/csv'};
+function extOf(n){return n.split('.').pop().toLowerCase();}
+function isTextExt(n){return TEXT_EXTS.has(extOf(n));}
+function gi(n,t){if(t==='dir')return{icon:'ti-folder',cls:'ic-dir'};const e=extOf(n);return{icon:EI[e]||'ti-file',cls:EC[e]||'ic-default'};}
+function tfor(n){return TE[extOf(n)]||'user';}
+function today(){return new Date().toISOString().slice(0,10);}
+function fsize(s){if(!s)return'0 B';const b=new TextEncoder().encode(s).length;if(b<1024)return b+' B';return(b/1024).toFixed(1)+' KB';}
+
+let fs={
+  '/':{type:'dir',ch:['docs','images','code','archive']},
+  '/docs':{type:'dir',ch:['readme.md','getting-started.txt']},
+  '/docs/readme.md':{type:'file',size:'0.7 KB',mod:today(),tag:'docs',c:'# VaultFS\n\nA terminal-driven encrypted filesystem.\n\n## Files\nText files (.txt .md .js .css .py .json etc) open in the built-in editor.\nBinary files (.png .jpg .pdf .mp3 .mp4 .zip etc) open in a preview pane\nwith inline rendering where supported, plus a Download button.\n\nDrag and drop files onto the file list, or use the Upload button, to\nadd real files from your device.\n\n## Cipher Suite (Hexagon)\n\n- Cascade — 4-subpass nonlinear XOR stream\n- Vigenère+ — polyalphabetic substitution with position shift\n- Transposition — columnar block permutation\n- Combined mode layers all three\n\nBinary file contents are base64-encoded before encryption, so uploaded\nimages, audio, and documents survive export/import along with text.\n\n## Export\nEncrypts the filesystem to a base64 string.\nRequires: passphrase + salt + security level + cipher mode.\n\n## Import\nRestores from an encrypted snapshot.\nAll four export parameters must match exactly.'},
+  '/docs/getting-started.txt':{type:'file',size:'0.2 KB',mod:today(),tag:'docs',c:'1. Create files with New File or: touch notes.txt\n2. Edit by double-clicking a file\n3. Export to save an encrypted snapshot\n4. Import to restore from a snapshot'},
+  '/images':{type:'dir',ch:[]},
+  '/code':{type:'dir',ch:[]},
+  '/archive':{type:'dir',ch:[]},
+};
+
+let tabs=[{id:0,path:'/'}],atab=0,tc=1,navHist=['/'],hi=0,sel=new Set(),lastSel=null,tfilt=null,cmdhist=[],chi=-1,editPath=null,termOpen=false;
+
+function cwd(){return tabs.find(t=>t.id===atab)?.path||'/';}
+function sp(p){const t=tabs.find(t=>t.id===atab);if(t)t.path=p;}
+
+function rTabs(){
+  document.getElementById('tab-list').innerHTML=tabs.map(t=>`
+    <div class="tab ${t.id===atab?'on':''}" onclick="swTab(${t.id})">
+      <i class="ti ti-folder" style="font-size:11px"></i>
+      <span>${t.path==='/'?'Home':t.path.split('/').pop()}</span>
+      ${tabs.length>1?`<span class="tab-x" onclick="event.stopPropagation();clTab(${t.id})">✕</span>`:''}
+    </div>`).join('');
+}
+function swTab(id){atab=id;tfilt=null;rTabs();rFiles();upUI();}
+function newTab(){const id=tc++;tabs.push({id,path:cwd()});atab=id;rTabs();rFiles();upUI();}
+function clTab(id){tabs=tabs.filter(t=>t.id!==id);if(atab===id)atab=tabs[tabs.length-1].id;rTabs();rFiles();upUI();}
+
+function upUI(){
+  const p=cwd();
+  document.getElementById('term-ps').textContent=p+'$';
+  // breadcrumb (with drop targets + sibling dropdown chevrons)
+  const parts=p.split('/').filter(Boolean);
+  let html=`<span class="crumb ${parts.length===0?'last':''}" data-crumb-path="/" ondragover="handleCrumbDragOver(event,'/')" ondragleave="handleCrumbDragLeave(event)" ondrop="handleCrumbDrop(event,'/')" onclick="go('/')">Home</span>`;
+  if(fs['/']&&(fs['/'].ch||[]).some(c=>fs['/'+c]?.type==='dir')){
+    html+=`<span class="crumb-chevron" onclick="event.stopPropagation();toggleCrumbDropdown(event,'/')"><i class="ti ti-chevron-down"></i></span>`;
+  }
+  parts.forEach((seg,i)=>{
+    const path='/'+parts.slice(0,i+1).join('/');
+    const isLast=i===parts.length-1;
+    html+=`<span class="crumb-sep">/</span><span class="crumb ${isLast?'last':''}" data-crumb-path="${escHtml(path)}" ondragover="handleCrumbDragOver(event,'${path}')" ondragleave="handleCrumbDragLeave(event)" ondrop="handleCrumbDrop(event,'${path}')" onclick="go('${path}')">${escHtml(seg)}</span>`;
+    if(fs[path]&&(fs[path].ch||[]).some(c=>{const fp=path==='/'?'/'+c:path+'/'+c;return fs[fp]?.type==='dir';})){
+      html+=`<span class="crumb-chevron" onclick="event.stopPropagation();toggleCrumbDropdown(event,'${path}')"><i class="ti ti-chevron-down"></i></span>`;
+    }
+  });
+  document.getElementById('pathcrumb').innerHTML=html;
+  // status
+  const node=fs[p];
+  let kids=node?.ch||[];
+  if(tfilt)kids=kids.filter(c=>{const fp=p==='/'?'/'+c:p+'/'+c;return fs[fp]?.tag===tfilt;});
+  document.getElementById('sb-path').textContent=p;
+  document.getElementById('sb-count').textContent=kids.length+' item'+(kids.length!==1?'s':'')+(tfilt?` (filtered: ${tfilt})`:'');
+  document.getElementById('sb-sel').textContent=sel.size===0?'nothing selected':sel.size===1?[...sel][0].split('/').pop()+' selected':sel.size+' items selected';
+  updateStorageIndicator();
+  // sidebar active states
+  document.querySelectorAll('.sb-item[data-tag]').forEach(el=>{
+    el.classList.toggle('active',el.dataset.tag===tfilt);
+  });
+  document.querySelectorAll('.sb-item[data-loc]').forEach(el=>{
+    el.classList.toggle('active',el.dataset.loc===p);
+  });
+}
+
+function resolve(base,p){
+  if(!p)return base;if(p==='~')return'/';if(p.startsWith('/'))return p.replace(/\/+$/,'')||'/';
+  const parts=base.split('/').filter(Boolean);
+  for(const s of p.split('/')){if(s==='..')parts.pop();else if(s&&s!=='.')parts.push(s);}
+  return'/'+parts.join('/')||'/';
+}
+function go(path,push=true){
+  path=resolve(cwd(),path);
+  if(!fs[path]||fs[path].type!=='dir'){tp('cd: not a directory: '+path,'err');return;}
+  tfilt=null;sp(path);
+  if(push){navHist=navHist.slice(0,hi+1);navHist.push(path);hi=navHist.length-1;}
+  sel.clear();lastSel=null;rTabs();rFiles();upUI();
+}
+function navBack(){if(hi>0){hi--;go(navHist[hi],false);}}
+function navUp(){const p=cwd();if(p==='/')return;const pts=p.split('/').filter(Boolean);pts.pop();go('/'+pts.join('/')||'/');}
+
+function rFiles(){
+  const el=document.getElementById('file-list');
+  const node=fs[cwd()];
+  if(!node||node.type!=='dir'){el.innerHTML='';return;}
+  let kids=node.ch||[];
+  if(tfilt)kids=kids.filter(c=>{const fp=cwd()==='/'?'/'+c:cwd()+'/'+c;return fs[fp]?.tag===tfilt;});
+  if(!kids.length){
+    el.innerHTML=`<div class="empty-state" style="display:flex"><i class="ti ti-folder-open"></i><p>${tfilt?'No files with tag "'+tfilt+'"':'This folder is empty — drag files here or use Upload'}</p></div>`;
+    return;
+  }
+  // dirs first
+  const sorted=[...kids].sort((a,b)=>{
+    const fa=fs[cwd()==='/'?'/'+a:cwd()+'/'+a]||{};
+    const fb=fs[cwd()==='/'?'/'+b:cwd()+'/'+b]||{};
+    if(fa.type===fb.type)return a.localeCompare(b);
+    return fa.type==='dir'?-1:1;
+  });
+  el.innerHTML=sorted.map(name=>{
+    const fp=cwd()==='/'?'/'+name:cwd()+'/'+name;
+    const n=fs[fp]||{};const isD=n.type==='dir';
+    const {icon,cls}=gi(name,n.type);
+    const tagClass=n.tag||'user';
+    const isSelected=sel.has(fp);
+    const isStarred=starred.has(fp);
+    const isCut=clipboardMode==='cut'&&clipboard.includes(fp);
+    const thumb=(!isD&&n.binary&&IMAGE_EXTS.has(extOf(name))&&n.data)
+      ?`<img class="ficon-thumb" src="data:${n.mime||'image/png'};base64,${n.data}"/>`
+      :`<i class="ti ${icon} ficon ${cls}"></i>`;
+    const displaySize=isD?(n.ch&&n.ch.length?fsizeBytes(folderSizeBytes(fp)):'empty'):(n.size||'—');
+    return`<div class="file-row ${isSelected?'sel':''} ${isCut?'cut-pending':''}" data-path="${escHtml(fp)}" draggable="true"
+  ondragstart="handleDragStart(event,'${fp}')" ondragover="handleRowDragOver(event,'${fp}')" ondragleave="handleRowDragLeave(event)" ondrop="handleRowDrop(event,'${fp}')"
+  onclick="event.stopPropagation();selFile('${fp}',event)" ondblclick="opeFile('${fp}')">
+  ${thumb}
+  <span class="fname ${isD?'dir':''}">${name}</span>
+  ${isStarred?'<i class="ti ti-star-filled star-badge"></i>':''}
+  <span class="fsize">${displaySize}</span>
+  <span class="fmod">${n.mod||'—'}</span>
+  <span class="ftag-cell">${n.tag?`<span class="ftag ${tagClass}">${n.tag}</span>`:''}</span>
+</div>`;
+  }).join('');
+}
+
+function selFile(p,e){
+  const ev=e||window.event;
+  if(ev&&ev.shiftKey&&lastSel){
+    // range select between lastSel and p within current directory listing order
+    const rows=[...document.querySelectorAll('#file-list .file-row')].map(r=>r.dataset.path);
+    const i1=rows.indexOf(lastSel),i2=rows.indexOf(p);
+    if(i1!==-1&&i2!==-1){
+      const [lo,hi]=i1<i2?[i1,i2]:[i2,i1];
+      sel.clear();
+      for(let i=lo;i<=hi;i++)sel.add(rows[i]);
+    }
+  }else if(ev&&(ev.ctrlKey||ev.metaKey)){
+    if(sel.has(p))sel.delete(p);else sel.add(p);
+    lastSel=p;
+  }else{
+    sel.clear();sel.add(p);lastSel=p;
+  }
+  rFiles();upUI();
+}
+function deselectAll(){if(sel.size){sel.clear();lastSel=null;rFiles();upUI();}}
+function opeFile(p){
+  const n=fs[p];if(!n)return;
+  if(n.type==='dir'){go(p);return;}
+  recordRecent(p);
+  if(n.binary){openPreview(p);return;}
+  openEditor(p);
+}
+function ftag(t){tfilt=tfilt===t?null:t;rFiles();upUI();}
+function clearTag(){tfilt=null;rFiles();upUI();}
+
+/* ── UPLOAD / BINARY FILES ── */
+function triggerUpload(){document.getElementById('upload-input').click();}
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('file-list').classList.remove('drag-over');
+  if(e.dataTransfer.files.length)handleUpload(e.dataTransfer.files);
+}
+
+/* ── DRAG TO MOVE (internal, between rows/folders) ── */
+let dragSourcePaths=null;
+function handleDragStart(e,p){
+  // if dragging a row that's part of the current multi-selection, drag the whole selection
+  dragSourcePaths=sel.has(p)?[...sel]:[p];
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',p); // harmless placeholder so some browsers allow the drag
+}
+function handleRowDragOver(e,p){
+  const n=fs[p];
+  if(!dragSourcePaths||!n||n.type!=='dir')return;
+  if(dragSourcePaths.includes(p)||dragSourcePaths.some(sp=>p.startsWith(sp+'/')))return; // can't drop onto self/descendant
+  e.preventDefault();
+  e.currentTarget.classList.add('drop-target');
+}
+function handleRowDragLeave(e){e.currentTarget.classList.remove('drop-target');}
+function handleRowDrop(e,p){
+  e.currentTarget.classList.remove('drop-target');
+  if(!dragSourcePaths)return;
+  const n=fs[p];
+  if(!n||n.type!=='dir')return;
+  e.preventDefault();e.stopPropagation();
+  moveIntoFolder(dragSourcePaths,p);
+  dragSourcePaths=null;
+}
+function moveIntoFolder(paths,destDir){
+  let moved=0;
+  paths.forEach(src=>{
+    if(!fs[src])return;
+    if(destDir===src||destDir.startsWith(src+'/'))return; // guard against folder-into-itself
+    const name=src.split('/').pop();
+    const srcPar=src.split('/').slice(0,-1).join('/')||'/';
+    if(srcPar===destDir)return; // already there
+    const newName=uniqueName2(destDir,name);
+    const newPath=resolve(destDir,newName);
+    movePath(src,newPath);
+    if(fs[srcPar])fs[srcPar].ch=(fs[srcPar].ch||[]).filter(c=>c!==name);
+    if(fs[destDir])fs[destDir].ch=[...(fs[destDir].ch||[]),newName];
+    if(sel.has(src)){sel.delete(src);sel.add(newPath);}
+    moved++;
+  });
+  tp(`Moved ${moved} item${moved!==1?'s':''} to ${destDir}`,'ok');
+  rFiles();upUI();
+}
+function uniqueName2(dir,base){
+  let p=resolve(dir,base);
+  if(!fs[p])return base;
+  const dot=base.lastIndexOf('.');
+  const stem=dot>0?base.slice(0,dot):base;
+  const ext=dot>0?base.slice(dot):'';
+  let i=2;
+  while(fs[resolve(dir,`${stem} (${i})${ext}`)])i++;
+  return `${stem} (${i})${ext}`;
+}
+
+/* ── BREADCRUMB: DRAG-DROP + SIBLING DROPDOWN ── */
+function handleCrumbDragOver(e,path){
+  if(!dragSourcePaths)return;
+  if(dragSourcePaths.includes(path)||dragSourcePaths.some(sp=>path.startsWith(sp+'/')))return;
+  e.preventDefault();
+  e.currentTarget.classList.add('crumb-drop-target');
+}
+function handleCrumbDragLeave(e){e.currentTarget.classList.remove('crumb-drop-target');}
+function handleCrumbDrop(e,path){
+  e.currentTarget.classList.remove('crumb-drop-target');
+  if(!dragSourcePaths)return;
+  e.preventDefault();
+  moveIntoFolder(dragSourcePaths,path);
+  dragSourcePaths=null;
+}
+
+let openCrumbDropdown=null;
+function toggleCrumbDropdown(e,path){
+  if(openCrumbDropdown===path){closeCrumbDropdown();return;}
+  closeCrumbDropdown();
+  const node=fs[path];if(!node)return;
+  const dirs=(node.ch||[]).filter(c=>{const fp=path==='/'?'/'+c:path+'/'+c;return fs[fp]?.type==='dir';}).sort();
+  if(!dirs.length)return;
+  const menu=document.createElement('div');
+  menu.id='crumb-dropdown';
+  menu.className='crumb-dropdown';
+  menu.innerHTML=dirs.map(name=>{
+    const fp=path==='/'?'/'+name:path+'/'+name;
+    return`<div class="ctx-item" onclick="closeCrumbDropdown();go('${fp}')"><i class="ti ti-folder" style="color:var(--warning)"></i><span>${escHtml(name)}</span></div>`;
+  }).join('');
+  document.body.appendChild(menu);
+  const rect=e.currentTarget.getBoundingClientRect();
+  menu.style.left=rect.left+'px';
+  menu.style.top=rect.bottom+4+'px';
+  openCrumbDropdown=path;
+  setTimeout(()=>document.addEventListener('click',closeCrumbDropdownOnClickOutside),0);
+}
+function closeCrumbDropdownOnClickOutside(e){
+  if(!e.target.closest('.crumb-dropdown'))closeCrumbDropdown();
+}
+function closeCrumbDropdown(){
+  document.getElementById('crumb-dropdown')?.remove();
+  document.removeEventListener('click',closeCrumbDropdownOnClickOutside);
+  openCrumbDropdown=null;
+}
+
+function uniqueName(base){
+  let p=resolve(cwd(),base);
+  if(!fs[p])return base;
+  const dot=base.lastIndexOf('.');
+  const stem=dot>0?base.slice(0,dot):base;
+  const ext=dot>0?base.slice(dot):'';
+  let i=2;
+  while(fs[resolve(cwd(),`${stem} (${i})${ext}`)])i++;
+  return `${stem} (${i})${ext}`;
+}
+
+function handleUpload(fileList){
+  const files=[...fileList];
+  if(!files.length)return;
+  let remaining=files.length;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const dataUrl=reader.result; // data:<mime>;base64,<data>
+      const base64=dataUrl.split(',')[1];
+      const name=uniqueName(file.name);
+      const p=resolve(cwd(),name);
+      const par=p.split('/').slice(0,-1).join('/')||'/';
+      const ext=extOf(name);
+      const text=isTextExt(name);
+      fs[p]={
+        type:'file',
+        size:fsizeBytes(file.size),
+        mod:today(),
+        tag:tfor(name),
+        binary:!text,
+        mime:file.type||MIME[ext]||'application/octet-stream',
+        data:text?null:base64,
+        c:''
+      };
+      if(text){
+        // decode base64 text safely (handles UTF-8)
+        try{
+          const bin=atob(base64);
+          const bytes=new Uint8Array(bin.length);
+          for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+          fs[p].c=new TextDecoder().decode(bytes);
+        }catch(e){fs[p].c='';}
+        fs[p].size=fsize(fs[p].c);
+      }
+      if(fs[par])fs[par].ch=[...(fs[par].ch||[]),name];
+      remaining--;
+      tp(`Uploaded: ${p} (${fs[p].size}${text?'':', binary'})`,'ok');
+      if(remaining===0){rFiles();upUI();}
+    };
+    reader.onerror=()=>{tp('Upload failed: '+file.name,'err');remaining--;};
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('upload-input').value='';
+}
+
+function fsizeBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB';}
+
+function totalStorageBytes(){
+  let total=0;
+  for(const p in fs){
+    const n=fs[p];
+    if(n.type!=='file')continue;
+    if(n.binary&&n.data)total+=Math.floor(n.data.length*0.75); // base64 -> raw bytes approx
+    else if(n.c)total+=new TextEncoder().encode(n.c).length;
+  }
+  return total;
+}
+function updateStorageIndicator(){
+  document.getElementById('sb-storage').textContent=fsizeBytes(totalStorageBytes())+' used';
+}
+
+function folderSizeBytes(p){
+  const n=fs[p];if(!n||n.type!=='dir')return 0;
+  let total=0;
+  (n.ch||[]).forEach(c=>{
+    const fp=p==='/'?'/'+c:p+'/'+c;
+    const child=fs[fp];if(!child)return;
+    if(child.type==='dir')total+=folderSizeBytes(fp);
+    else if(child.binary&&child.data)total+=Math.floor(child.data.length*0.75);
+    else if(child.c)total+=new TextEncoder().encode(child.c).length;
+  });
+  return total;
+}
+
+let currentPreviewPath=null;
+function openPreview(p){
+  const n=fs[p];if(!n)return;
+  currentPreviewPath=p;
+  const name=p.split('/').pop();
+  const ext=extOf(name);
+  const {icon}=gi(name,'file');
+  document.getElementById('preview-icon').innerHTML=`<i class="ti ${icon}"></i>`;
+  document.getElementById('preview-title').textContent=name;
+  document.getElementById('preview-meta').textContent=`${p} · ${n.size||'—'} · ${n.mime||'binary'}`;
+  const body=document.getElementById('preview-body');
+  const dataUrl=n.data?`data:${n.mime||'application/octet-stream'};base64,${n.data}`:null;
+
+  if(IMAGE_EXTS.has(ext)&&dataUrl){
+    body.innerHTML=`<img src="${dataUrl}" style="max-width:100%;max-height:420px;border-radius:8px;border:1px solid var(--border)"/>`;
+  }else if(AUDIO_EXTS.has(ext)&&dataUrl){
+    body.innerHTML=`<audio controls style="width:100%" src="${dataUrl}"></audio>`;
+  }else if(VIDEO_EXTS.has(ext)&&dataUrl){
+    body.innerHTML=`<video controls style="max-width:100%;max-height:420px;border-radius:8px" src="${dataUrl}"></video>`;
+  }else if(ext==='pdf'&&dataUrl){
+    body.innerHTML=`<iframe src="${dataUrl}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px"></iframe>`;
+  }else if(n.data){
+    const textAttempt=tryDecodeAsText(n.data);
+    if(textAttempt!==null){
+      body.innerHTML=`<div style="width:100%"><div class="notice info" style="margin-bottom:10px"><i class="ti ti-info-circle"></i><span>No native preview for this file type — showing as plain text.</span></div><pre style="width:100%;max-height:380px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;word-break:break-word;text-align:left;margin:0">${escHtml(textAttempt)}</pre></div>`;
+    }else{
+      body.innerHTML=`<div class="empty-state" style="display:flex"><i class="ti ${icon}"></i><p>No inline preview available for this file type.</p><p style="font-size:11px">Use Download to save it.</p></div>`;
+    }
+  }else{
+    body.innerHTML=`<div class="empty-state" style="display:flex"><i class="ti ${icon}"></i><p>No inline preview available for this file type.</p><p style="font-size:11px">Use Download to save it.</p></div>`;
+  }
+  openOv('preview-ov');
+}
+
+// Attempt to decode base64 binary data as UTF-8 text. Returns null if the
+// result looks like genuine binary garbage (too many replacement chars or
+// unprintable control bytes), so we don't show mojibake for real binaries
+// like zips or images that happen to reach this fallback path.
+function tryDecodeAsText(base64data){
+  try{
+    const bin=atob(base64data);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const text=new TextDecoder('utf-8',{fatal:false}).decode(bytes);
+    const sampleLen=Math.min(text.length,2000);
+    const sample=text.slice(0,sampleLen);
+    let badChars=0;
+    for(let i=0;i<sample.length;i++){
+      const c=sample.charCodeAt(i);
+      if(c===0xFFFD)badChars++; // replacement character = invalid UTF-8 sequence
+      else if(c<32&&c!==9&&c!==10&&c!==13)badChars++; // control chars other than tab/LF/CR
+    }
+    if(sampleLen>0&&badChars/sampleLen>0.02)return null; // >2% garbage -> treat as real binary
+    return text;
+  }catch(e){return null;}
+}
+
+function downloadCurrentPreview(){
+  const p=currentPreviewPath;if(!p)return;
+  const n=fs[p];if(!n)return;
+  const name=p.split('/').pop();
+  let href;
+  if(n.binary&&n.data){
+    href=`data:${n.mime||'application/octet-stream'};base64,${n.data}`;
+  }else{
+    const blob=new Blob([n.c||''],{type:'text/plain'});
+    href=URL.createObjectURL(blob);
+  }
+  const a=document.createElement('a');
+  a.href=href;a.download=name;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  tp('Downloaded: '+name,'ok');
+}
+
+function openEditor(p){
+  editPath=p;
+  document.getElementById('ed-title').textContent=p.split('/').pop();
+  document.getElementById('ed-area').value=fs[p]?.c||'';
+  const n=fs[p]||{};
+  document.getElementById('ed-meta').textContent=`${p} · ${n.size||'0 B'} · modified ${n.mod||'—'}`;
+  openOv('editor-ov');
+  setTimeout(()=>document.getElementById('ed-area').focus(),80);
+}
+function saveEdit(){
+  if(!editPath)return;
+  const val=document.getElementById('ed-area').value;
+  fs[editPath].c=val;fs[editPath].mod=today();fs[editPath].size=fsize(val);
+  tp('Saved: '+editPath,'ok');rFiles();closeOv('editor-ov');
+}
+
+function openNewFolder(){openOv('mkdir-ov');setTimeout(()=>document.getElementById('mkdir-name').focus(),80);}
+function doMkdir(){
+  const n=document.getElementById('mkdir-name').value.trim().replace(/\//g,'');
+  if(!n){alert('Enter a folder name.');return;}
+  const p=resolve(cwd(),n);
+  if(fs[p]){tp(`mkdir: '${n}' already exists`,'err');closeOv('mkdir-ov');return;}
+  const par=p.split('/').slice(0,-1).join('/')||'/';const base=p.split('/').pop();
+  fs[p]={type:'dir',ch:[],tag:'user'};if(fs[par])fs[par].ch=[...(fs[par].ch||[]),base];
+  tp('Created folder: '+p,'ok');closeOv('mkdir-ov');document.getElementById('mkdir-name').value='';rFiles();upUI();
+}
+
+const FILE_TEMPLATES=[
+  {key:'blank',label:'Blank',icon:'ti-file',ext:'txt',content:''},
+  {key:'markdown',label:'Markdown',icon:'ti-file-text',ext:'md',content:'# Title\n\n'},
+  {key:'json',label:'JSON',icon:'ti-json',ext:'json',content:'{\n  \n}'},
+  {key:'code',label:'Code Snippet',icon:'ti-code',ext:'js',content:'// \n'},
+];
+let selectedTemplate='blank';
+function openNewFile(){
+  selectedTemplate='blank';
+  document.getElementById('touch-name').value='';
+  renderTemplatePicker();
+  openOv('touch-ov');
+  setTimeout(()=>document.getElementById('touch-name').focus(),80);
+}
+function renderTemplatePicker(){
+  document.getElementById('template-picker').innerHTML=FILE_TEMPLATES.map(t=>`
+    <div class="tpl-card ${t.key===selectedTemplate?'active':''}" onclick="selectTemplate('${t.key}')">
+      <i class="ti ${t.icon}"></i><span>${t.label}</span>
+    </div>`).join('');
+}
+function selectTemplate(key){
+  selectedTemplate=key;
+  renderTemplatePicker();
+  // if the filename field is empty or still matches a previous template's default extension, suggest a matching name
+  const nameInput=document.getElementById('touch-name');
+  const tpl=FILE_TEMPLATES.find(t=>t.key===key);
+  if(tpl&&(!nameInput.value.trim()||FILE_TEMPLATES.some(t=>nameInput.value.trim()===('untitled.'+t.ext)))){
+    nameInput.value=tpl.key==='blank'?'':'untitled.'+tpl.ext;
+  }
+}
+function doTouch(){
+  let n=document.getElementById('touch-name').value.trim().replace(/\//g,'');
+  const tpl=FILE_TEMPLATES.find(t=>t.key===selectedTemplate)||FILE_TEMPLATES[0];
+  if(!n)n='untitled.'+tpl.ext;
+  if(!n.includes('.')&&tpl.ext)n+='.'+tpl.ext;
+  const p=resolve(cwd(),n);
+  if(fs[p]){tp(`touch: '${n}' already exists`,'err');closeOv('touch-ov');return;}
+  const par=p.split('/').slice(0,-1).join('/')||'/';const base=p.split('/').pop();
+  fs[p]={type:'file',size:fsize(tpl.content),mod:today(),tag:tfor(base),c:tpl.content};
+  if(fs[par])fs[par].ch=[...(fs[par].ch||[]),base];
+  tp(`Created: ${p} [${tfor(base)}]`,'ok');closeOv('touch-ov');document.getElementById('touch-name').value='';rFiles();upUI();
+  openEditor(p);
+}
+
+function openSearch(){openOv('search-ov');setTimeout(()=>{document.getElementById('search-q').value='';document.getElementById('search-results').innerHTML='';document.getElementById('search-q').focus();},80);}
+function doSearch(q){
+  const el=document.getElementById('search-results');
+  if(!q||!q.trim()){el.innerHTML='';return;}
+  const query=q.trim().toLowerCase();
+  const nameMatches=[];
+  const contentMatches=[];
+  for(const p in fs){
+    if(p==='/')continue;
+    const n=fs[p];
+    const name=p.split('/').pop();
+    if(p.toLowerCase().includes(query)){
+      nameMatches.push({p,name,n});
+      continue;
+    }
+    if(n.type==='file'&&!n.binary&&n.c&&n.c.toLowerCase().includes(query)){
+      const idx=n.c.toLowerCase().indexOf(query);
+      const start=Math.max(0,idx-30);
+      const snippet=(start>0?'…':'')+n.c.slice(start,idx+query.length+30).replace(/\n/g,' ')+(idx+query.length+30<n.c.length?'…':'');
+      contentMatches.push({p,name,n,snippet});
+    }
+  }
+  if(!nameMatches.length&&!contentMatches.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">No results</div>';
+    return;
+  }
+  let html='';
+  if(nameMatches.length){
+    html+=nameMatches.map(({p,name,n})=>{
+      const {icon,cls}=gi(name,n.type);
+      return`<div class="file-row" style="height:32px;border-radius:var(--radius)" onclick="closeOv('search-ov');${n.type==='dir'?`go('${p}')`:`opeFile('${p}')`}">
+  <i class="ti ${icon} ficon ${cls}"></i>
+  <span class="fname">${escHtml(name)}</span>
+  <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">${escHtml(p)}</span>
+</div>`;
+    }).join('');
+  }
+  if(contentMatches.length){
+    html+=`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 10px 4px">In file contents</div>`;
+    html+=contentMatches.map(({p,name,n,snippet})=>{
+      const {icon,cls}=gi(name,n.type);
+      return`<div class="file-row" style="height:auto;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;border-radius:var(--radius)" onclick="closeOv('search-ov');opeFile('${p}')">
+  <div style="display:flex;align-items:center;gap:8px;width:100%">
+    <i class="ti ${icon} ficon ${cls}"></i>
+    <span class="fname">${escHtml(name)}</span>
+    <span style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-left:auto">${escHtml(p)}</span>
+  </div>
+  <div style="font-size:11px;color:var(--text2);padding-left:26px;font-family:var(--mono)">${escHtml(snippet)}</div>
+</div>`;
+    }).join('');
+  }
+  el.innerHTML=html;
+}
+
+function showTreeView(){
+  const lines=[];
+  function walk(p,pre){
+    const n=fs[p];if(!n||n.type!=='dir')return;
+    (n.ch||[]).forEach((c,i,a)=>{
+      const fp=p==='/'?'/'+c:p+'/'+c;const last=i===a.length-1;
+      lines.push(pre+(last?'└── ':'├── ')+c);
+      if(fs[fp]?.type==='dir')walk(fp,pre+(last?'    ':'│   '));
+    });
+  }
+  walk('/','');
+  tp('/\n'+lines.join('\n'));
+  if(!termOpen)toggleTerm();
+}
+
+/* ── EXPORT / IMPORT ── */
+function updateStrength(key){
+  let score=0;
+  if(key.length>=8)score++;if(key.length>=16)score++;if(key.length>=32)score++;
+  if(/[A-Z]/.test(key))score++;if(/[0-9]/.test(key))score++;if(/[^A-Za-z0-9]/.test(key))score++;
+  const labels=['Very weak','Weak','Fair','Good','Strong','Very strong','Excellent'];
+  const colors=['#dc2626','#dc2626','#d97706','#eab308','#16a34a','#0891b2','#7c3aed'];
+  const pct=Math.round((score/6)*100);
+  document.getElementById('strength-fill').style.cssText=`width:${pct}%;background:${colors[score]||colors[0]}`;
+  document.getElementById('strength-text').textContent=labels[score]||'Very weak';
+}
+
+function genSalt(){
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_';
+  let s='';for(let i=0;i<24;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('ex-salt').value=s;
+}
+
+function togglePass(id){const el=document.getElementById(id);el.type=el.type==='password'?'text':'password';}
+
+function makeLog(id){
+  const el=document.getElementById(id);el.classList.add('open');el.innerHTML='';
+  return(msg,cls='step')=>{
+    const d=document.createElement('div');
+    d.className='log-'+(cls==='step'?'step':cls==='ok'?'ok':'err');
+    d.textContent=(cls==='step'?'→ ':cls==='ok'?'✓ ':'✗ ')+msg;
+    el.appendChild(d);el.scrollTop=el.scrollHeight;
+  };
+}
+
+function openExport(){
+  document.getElementById('ex-key').value='';document.getElementById('ex-salt').value='';
+  document.getElementById('ex-area').value='';document.getElementById('ex-log').innerHTML='';
+  document.getElementById('ex-log').classList.remove('open');
+  document.getElementById('ex-output-field').style.display='none';
+  document.getElementById('ex-copy-btn').style.display='none';
+  updateStrength('');openOv('export-ov');
+  setTimeout(()=>document.getElementById('ex-key').focus(),80);
+}
+async function doExport(){
+  const key=document.getElementById('ex-key').value;
+  const salt=document.getElementById('ex-salt').value.trim();
+  const passes=parseInt(document.getElementById('ex-passes').value);
+  const mode=document.getElementById('ex-mode').value;
+  if(!key){tp('Export: passphrase required','err');return;}
+  if(!salt){tp('Exporting without a salt — still secure, but a salt adds protection against precomputed attacks','warn');}
+  const log=makeLog('ex-log');
+  const btn=document.querySelector('#export-ov .btn-primary');
+  const origLabel=btn.innerHTML;
+  btn.innerHTML='<i class="ti ti-loader-2"></i> Encrypting…';btn.disabled=true;
+  try{
+    const envelope={__vaultfs:true,fs,starred:[...starred],recentFiles};
+    const result=await hexEncrypt(envelope,key,salt,passes,mode,log);
+    document.getElementById('ex-area').value=result;
+    document.getElementById('ex-output-field').style.display='';
+    document.getElementById('ex-copy-btn').style.display='';
+    tp('Snapshot encrypted successfully','ok');
+  }catch(e){log(e.message,'err');tp('Encryption failed: '+e.message,'err');}
+  finally{btn.innerHTML=origLabel;btn.disabled=false;}
+}
+function copyBlob(id){
+  const val=document.getElementById(id).value;
+  if(!val)return;
+  navigator.clipboard.writeText(val).then(()=>tp('Copied to clipboard','ok')).catch(()=>tp('Clipboard blocked — select all and copy manually','err'));
+}
+
+function openImport(){
+  document.getElementById('im-key').value='';document.getElementById('im-salt').value='';
+  document.getElementById('io-area').value='';document.getElementById('im-log').innerHTML='';
+  document.getElementById('im-log').classList.remove('open');
+  openOv('import-ov');
+  setTimeout(()=>document.getElementById('io-area').focus(),80);
+}
+async function doImport(){
+  const key=document.getElementById('im-key').value;
+  const salt=document.getElementById('im-salt').value.trim();
+  const passes=parseInt(document.getElementById('im-passes').value);
+  const mode=document.getElementById('im-mode').value;
+  const blob=document.getElementById('io-area').value.trim();
+  if(!key||!blob){tp('Import: passphrase and snapshot required','err');return;}
+  const log=makeLog('im-log');
+  const btn=document.querySelector('#import-ov .btn-success');
+  const origLabel=btn.innerHTML;
+  btn.innerHTML='<i class="ti ti-loader-2"></i> Decrypting…';btn.disabled=true;
+  try{
+    const parsed=await hexDecrypt(blob,key,salt,passes,mode,log);
+    let restoredFs,restoredStarred=[],restoredRecents=[];
+    if(parsed&&parsed.__vaultfs&&parsed.fs){
+      // new envelope format
+      restoredFs=parsed.fs;
+      restoredStarred=Array.isArray(parsed.starred)?parsed.starred:[];
+      restoredRecents=Array.isArray(parsed.recentFiles)?parsed.recentFiles:[];
+    }else{
+      // legacy format: snapshot was the raw fs tree itself
+      restoredFs=parsed;
+    }
+    if(!restoredFs||!restoredFs['/']||restoredFs['/'].type!=='dir')throw new Error('Invalid snapshot — missing root');
+    fs=restoredFs;
+    starred=new Set(restoredStarred.filter(p=>fs[p]));
+    recentFiles=restoredRecents.filter(p=>fs[p]);
+    sel.clear();lastSel=null;tfilt=null;
+    go('/');closeOv('import-ov');rSidebarRecents();
+    tp('Filesystem restored successfully'+(parsed&&parsed.__vaultfs?' (including starred & recents)':''),'ok');
+  }catch(e){log(e.message,'err');tp('Decryption failed: '+e.message,'err');}
+  finally{btn.innerHTML=origLabel;btn.disabled=false;}
+}
+
+/* ── TERMINAL ── */
+function toggleTerm(){
+  termOpen=!termOpen;
+  document.getElementById('term-body').classList.toggle('open',termOpen);
+  document.getElementById('term-toggle').classList.toggle('open',termOpen);
+  document.getElementById('term-chev').style.transform=termOpen?'rotate(180deg)':'';
+  if(termOpen)document.getElementById('term-in').focus();
+}
+
+function tp(msg,cls=''){
+  if(!termOpen)toggleTerm();
+  const out=document.getElementById('term-out');
+  String(msg).split('\n').forEach(l=>{
+    const d=document.createElement('div');d.className='tl'+(cls?' '+cls:'');d.textContent=l;out.appendChild(d);
+  });
+  out.scrollTop=out.scrollHeight;
+}
+
+function hcmd(e){
+  const inp=e.target;
+  if(e.key==='ArrowUp'){if(chi<cmdhist.length-1){chi++;inp.value=cmdhist[cmdhist.length-1-chi];}return;}
+  if(e.key==='ArrowDown'){if(chi>0){chi--;inp.value=cmdhist[cmdhist.length-1-chi];}else{chi=-1;inp.value='';}return;}
+  if(e.key!=='Enter')return;
+  const raw=inp.value.trim();inp.value='';chi=-1;
+  if(!raw)return;
+  if(raw!==cmdhist[cmdhist.length-1])cmdhist.push(raw);
+  tp(cwd()+'$ '+raw,'dim');
+  const [cmd,...args]=raw.split(/\s+/);
+  ({ls,cd,mkdir,touch,write,rm,cat,find,tree,pwd:()=>tp(cwd()),clear:()=>{document.getElementById('term-out').innerHTML=''},help}[cmd]||(()=>tp(cmd+': command not found — type help','err')))(args);
+}
+
+function ls([t]){
+  const p=t?resolve(cwd(),t):cwd();const n=fs[p];
+  if(!n||n.type!=='dir'){tp('ls: not a directory: '+p,'err');return;}
+  const kids=n.ch||[];if(!kids.length){tp('(empty)');return;}
+  tp(kids.map(c=>{const fp=p==='/'?'/'+c:p+'/'+c;const nd=fs[fp]||{};return`${nd.type==='dir'?'d':'-'}  ${c.padEnd(28)} ${(nd.size||'').padStart(8)}  [${nd.tag||'—'}]`;}).join('\n'));
+}
+function cd([p]){if(!p||p==='~')go('/');else go(p);}
+function mkdir([n]){
+  if(!n){tp('mkdir: missing operand','err');return;}
+  const p=resolve(cwd(),n);if(fs[p]){tp(`mkdir: '${n}': already exists`,'err');return;}
+  const par=p.split('/').slice(0,-1).join('/')||'/';const base=p.split('/').pop();
+  fs[p]={type:'dir',ch:[],tag:'user'};if(fs[par])fs[par].ch=[...(fs[par].ch||[]),base];
+  tp('Created: '+p,'ok');rFiles();upUI();
+}
+function touch([n]){
+  if(!n){tp('touch: missing operand','err');return;}
+  const p=resolve(cwd(),n);if(fs[p]){tp(`touch: '${n}': already exists`,'err');return;}
+  const par=p.split('/').slice(0,-1).join('/')||'/';const base=p.split('/').pop();
+  fs[p]={type:'file',size:'0 B',mod:today(),tag:tfor(base),c:''};
+  if(fs[par])fs[par].ch=[...(fs[par].ch||[]),base];
+  tp(`Created: ${p}  [tag: ${tfor(base)}]`,'ok');rFiles();upUI();
+}
+function write(args){
+  const name=args[0];const content=args.slice(1).join(' ');
+  if(!name||!content){tp('Usage: write <file> <content>','err');return;}
+  const p=resolve(cwd(),name);
+  if(!fs[p]){
+    const par=p.split('/').slice(0,-1).join('/')||'/';const base=p.split('/').pop();
+    fs[p]={type:'file',mod:today(),tag:tfor(base),c:''};
+    if(fs[par])fs[par].ch=[...(fs[par].ch||[]),base];
+  }
+  fs[p].c=(fs[p].c?fs[p].c+'\n':'')+content;
+  fs[p].mod=today();fs[p].size=fsize(fs[p].c);
+  tp('Wrote to: '+p,'ok');rFiles();upUI();
+}
+function rm([n]){
+  if(!n){tp('rm: missing operand','err');return;}
+  const p=resolve(cwd(),n);if(!fs[p]){tp(`rm: '${n}': no such file`,'err');return;}
+  const par=p.split('/').slice(0,-1).join('/')||'/';const base=p.split('/').pop();
+  delete fs[p];if(fs[par])fs[par].ch=(fs[par].ch||[]).filter(c=>c!==base);
+  sel.delete(p);tp('Removed: '+p,'ok');rFiles();upUI();
+}
+function cat([n]){
+  if(!n){tp('cat: missing operand','err');return;}
+  const p=resolve(cwd(),n);const nd=fs[p];
+  if(!nd){tp('cat: not found: '+n,'err');return;}
+  if(nd.type==='dir'){tp('cat: is a directory: '+n,'err');return;}
+  tp(nd.c||'(empty)');
+}
+function find([pat]){
+  if(!pat){tp('find: missing pattern','err');return;}
+  const r=Object.keys(fs).filter(p=>p.toLowerCase().includes(pat.toLowerCase()));
+  tp(r.length?r.join('\n'):'No results');
+}
+function tree([t]){
+  const root=t?resolve(cwd(),t):cwd();const lines=[root];
+  function walk(p,pre){const n=fs[p];if(!n||n.type!=='dir')return;(n.ch||[]).forEach((c,i,a)=>{const fp=p==='/'?'/'+c:p+'/'+c;const last=i===a.length-1;lines.push(pre+(last?'└── ':'├── ')+c);if(fs[fp]?.type==='dir')walk(fp,pre+(last?'    ':'│   '));});}
+  walk(root,'');tp(lines.join('\n'));
+}
+function help(){tp(`ls [path]           List directory contents
+cd <path>           Change directory (supports .., ~)
+mkdir <name>        Create a directory
+touch <name>        Create a file (auto-tagged by extension)
+write <file> <txt>  Append text to a file
+rm <name>           Remove a file or directory
+cat <file>          Print file contents
+find <pattern>      Search all paths
+tree [path]         Show directory tree
+pwd                 Print working directory
+clear               Clear terminal output
+help                Show this message`);}
+
+/* ── CONTEXT MENU ── */
+let ctxTargetPath=null;
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function handleContextMenu(e){
+  e.preventDefault();
+  const row=e.target.closest('.file-row');
+  if(row){
+    const p=row.getAttribute('data-path');
+    if(!sel.has(p)){sel.clear();sel.add(p);lastSel=p;rFiles();upUI();}
+    ctxTargetPath=p;
+    showCtxMenu(e.clientX,e.clientY,sel.size>1?multiCtxItems():fileCtxItems(p));
+  }else{
+    ctxTargetPath=null;
+    showCtxMenu(e.clientX,e.clientY,emptyCtxItems());
+  }
+}
+
+function fileCtxItems(p){
+  const n=fs[p];if(!n)return[];
+  const isDir=n.type==='dir';
+  const isStarred=starred.has(p);
+  const items=[];
+  if(isDir){
+    items.push({label:'Open',icon:'ti-folder-open',action:()=>go(p)});
+  }else if(n.binary){
+    items.push({label:'Preview',icon:'ti-eye',action:()=>openPreview(p)});
+    items.push({label:'Download',icon:'ti-download',action:()=>{currentPreviewPath=p;downloadCurrentPreview();}});
+  }else{
+    items.push({label:'Open',icon:'ti-file-pencil',action:()=>openEditor(p)});
+  }
+  items.push({divider:true});
+  items.push({label:'Rename',icon:'ti-edit',shortcut:'F2',action:()=>openRename(p)});
+  items.push({label:'Duplicate',icon:'ti-copy',action:()=>doDuplicate(p)});
+  items.push({label:isStarred?'Remove Star':'Add Star',icon:isStarred?'ti-star-off':'ti-star',action:()=>toggleStar(p)});
+  items.push({label:'Set Tag',icon:'ti-tag',action:()=>openTagPicker([p])});
+  items.push({divider:true});
+  items.push({label:'Cut',icon:'ti-cut',shortcut:'Ctrl+X',action:()=>setClipboard([p],'cut')});
+  items.push({label:'Copy',icon:'ti-copy',shortcut:'Ctrl+C',action:()=>setClipboard([p],'copy')});
+  items.push({label:'Copy Path',icon:'ti-clipboard',action:()=>copyPath(p)});
+  items.push({divider:true});
+  items.push({label:'Delete',icon:'ti-trash',danger:true,shortcut:'Del',action:()=>openDeleteConfirm(p)});
+  return items;
+}
+
+function multiCtxItems(){
+  const paths=[...sel];
+  const n=paths.length;
+  const allStarred=paths.every(p=>starred.has(p));
+  return [
+    {label:`Cut ${n} items`,icon:'ti-cut',shortcut:'Ctrl+X',action:()=>setClipboard(paths,'cut')},
+    {label:`Copy ${n} items`,icon:'ti-copy',shortcut:'Ctrl+C',action:()=>setClipboard(paths,'copy')},
+    {label:allStarred?'Remove Star':'Add Star',icon:allStarred?'ti-star-off':'ti-star',action:()=>{paths.forEach(p=>allStarred?starred.delete(p):starred.add(p));rFiles();rSidebarRecents();}},
+    {label:'Set Tag',icon:'ti-tag',action:()=>openTagPicker(paths)},
+    {divider:true},
+    {label:`Delete ${n} items`,icon:'ti-trash',danger:true,shortcut:'Del',action:()=>openDeleteConfirm(paths)},
+  ];
+}
+
+function emptyCtxItems(){
+  return [
+    {label:'New File',icon:'ti-file-plus',action:()=>openNewFile()},
+    {label:'New Folder',icon:'ti-folder-plus',action:()=>openNewFolder()},
+    {label:'Upload Files',icon:'ti-upload',action:()=>triggerUpload()},
+    {divider:true},
+    {label:clipboard.length?`Paste ${clipboard.length} item${clipboard.length!==1?'s':''}`:'Paste',icon:'ti-clipboard',action:()=>doPaste(),disabled:!clipboard.length},
+    {divider:true},
+    {label:'Copy Folder Path',icon:'ti-clipboard',action:()=>copyPath(cwd())},
+  ];
+}
+
+function showCtxMenu(x,y,items){
+  const menu=document.getElementById('ctx-menu');
+  menu.innerHTML=items.map(it=>{
+    if(it.divider)return'<div class="ctx-divider"></div>';
+    return`<div class="ctx-item ${it.danger?'danger':''} ${it.disabled?'disabled':''}" data-action="1">
+  <i class="ti ${it.icon}"></i><span>${escHtml(it.label)}</span>
+  ${it.shortcut?`<span class="ctx-shortcut">${it.shortcut}</span>`:''}
+</div>`;
+  }).join('');
+  // wire click handlers
+  let idx=0;
+  [...menu.children].forEach(child=>{
+    if(child.classList.contains('ctx-divider'))return;
+    const item=items.filter(it=>!it.divider)[idx];
+    if(item&&!item.disabled){
+      child.addEventListener('click',()=>{hideCtxMenu();item.action();});
+    }
+    idx++;
+  });
+  menu.classList.add('open');
+  // position, then clamp to viewport after measuring
+  menu.style.left=x+'px';menu.style.top=y+'px';
+  requestAnimationFrame(()=>{
+    const r=menu.getBoundingClientRect();
+    if(r.right>window.innerWidth)menu.style.left=(window.innerWidth-r.width-8)+'px';
+    if(r.bottom>window.innerHeight)menu.style.top=(window.innerHeight-r.height-8)+'px';
+  });
+}
+function hideCtxMenu(){document.getElementById('ctx-menu').classList.remove('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('#ctx-menu'))hideCtxMenu();});
+document.addEventListener('scroll',hideCtxMenu,true);
+window.addEventListener('resize',hideCtxMenu);
+
+/* ── RENAME / DUPLICATE / COPY PATH / DELETE ── */
+function openRename(p){
+  const n=fs[p];if(!n)return;
+  const oldName=p.split('/').pop();
+  const newName=prompt('Rename to:',oldName);
+  if(!newName||newName===oldName)return;
+  const cleanName=newName.trim().replace(/\//g,'');
+  if(!cleanName)return;
+  const par=p.split('/').slice(0,-1).join('/')||'/';
+  const newPath=resolve(par,cleanName);
+  if(fs[newPath]){tp(`Rename failed: '${cleanName}' already exists`,'err');return;}
+  // move the node (and, if a directory, all descendants) to the new path
+  movePath(p,newPath);
+  if(fs[par]){
+    fs[par].ch=fs[par].ch.map(c=>c===oldName?cleanName:c);
+  }
+  if(sel.has(p)){sel.delete(p);sel.add(newPath);}
+  if(lastSel===p)lastSel=newPath;
+  if(starred.has(p)){starred.delete(p);starred.add(newPath);}
+  tp(`Renamed: ${p} → ${newPath}`,'ok');
+  rFiles();upUI();
+}
+
+function movePath(oldPath,newPath){
+  const node=fs[oldPath];
+  fs[newPath]=node;
+  delete fs[oldPath];
+  if(node.type==='dir'){
+    (node.ch||[]).forEach(c=>{
+      const oldChild=oldPath==='/'?'/'+c:oldPath+'/'+c;
+      const newChild=newPath==='/'?'/'+c:newPath+'/'+c;
+      movePath(oldChild,newChild);
+    });
+  }
+}
+
+function doDuplicate(p){
+  const n=fs[p];if(!n)return;
+  const name=p.split('/').pop();
+  const par=p.split('/').slice(0,-1).join('/')||'/';
+  const newName=uniqueName(name);
+  const newPath=resolve(par,newName);
+  copyPathDeep(p,newPath);
+  if(fs[par])fs[par].ch=[...(fs[par].ch||[]),newName];
+  tp(`Duplicated: ${newPath}`,'ok');
+  rFiles();upUI();
+}
+function copyPathDeep(src,dst){
+  const node=fs[src];
+  fs[dst]=JSON.parse(JSON.stringify(node));
+  if(node.type==='dir'){
+    (node.ch||[]).forEach(c=>{
+      const s=src==='/'?'/'+c:src+'/'+c;
+      const d=dst==='/'?'/'+c:dst+'/'+c;
+      copyPathDeep(s,d);
+    });
+  }
+}
+
+function copyPath(p){
+  navigator.clipboard.writeText(p)
+    .then(()=>tp('Copied path: '+p,'ok'))
+    .catch(()=>tp('Clipboard blocked','err'));
+}
+
+let pendingDelete=null; // array of paths
+function openDeleteConfirm(pOrPaths){
+  const paths=Array.isArray(pOrPaths)?pOrPaths:[pOrPaths];
+  const valid=paths.filter(p=>fs[p]);
+  if(!valid.length)return;
+  pendingDelete=valid;
+  if(valid.length===1){
+    const p=valid[0];const n=fs[p];
+    const isDir=n.type==='dir';
+    const count=isDir?countDescendants(p):0;
+    document.getElementById('delete-target-name').textContent=p.split('/').pop();
+    document.getElementById('delete-target-detail').textContent=isDir
+      ?`This folder contains ${count} item${count!==1?'s':''}. This cannot be undone.`
+      :'This cannot be undone.';
+  }else{
+    document.getElementById('delete-target-name').textContent=`${valid.length} items`;
+    document.getElementById('delete-target-detail').textContent='This cannot be undone.';
+  }
+  openOv('delete-ov');
+}
+function countDescendants(p){
+  const n=fs[p];if(!n||n.type!=='dir')return 0;
+  let count=0;
+  (n.ch||[]).forEach(c=>{
+    const fp=p==='/'?'/'+c:p+'/'+c;
+    count+=1+countDescendants(fp);
+  });
+  return count;
+}
+function confirmDelete(){
+  if(!pendingDelete||!pendingDelete.length)return;
+  pendingDelete.forEach(p=>{
+    if(!fs[p])return; // already removed (e.g. nested under another deleted path)
+    const par=p.split('/').slice(0,-1).join('/')||'/';
+    const base=p.split('/').pop();
+    deleteDeep(p);
+    if(fs[par])fs[par].ch=(fs[par].ch||[]).filter(c=>c!==base);
+    sel.delete(p);starred.delete(p);
+  });
+  tp(pendingDelete.length===1?'Deleted: '+pendingDelete[0]:`Deleted ${pendingDelete.length} items`,'ok');
+  closeOv('delete-ov');
+  pendingDelete=null;
+  rFiles();upUI();rSidebarRecents();
+}
+function deleteDeep(p){
+  const n=fs[p];if(!n)return;
+  if(n.type==='dir'){(n.ch||[]).forEach(c=>{const fp=p==='/'?'/'+c:p+'/'+c;deleteDeep(fp);});}
+  delete fs[p];
+}
+
+/* ── CLIPBOARD: CUT / COPY / PASTE ── */
+let clipboard=[];     // array of source paths
+let clipboardMode=null; // 'cut' | 'copy'
+
+function setClipboard(paths,mode){
+  clipboard=paths.filter(p=>fs[p]);
+  clipboardMode=mode;
+  tp(`${mode==='cut'?'Cut':'Copied'} ${clipboard.length} item${clipboard.length!==1?'s':''} — Paste in destination folder`,'ok');
+  rFiles(); // refresh cut-pending visual
+}
+
+function doPaste(){
+  if(!clipboard.length)return;
+  const destDir=cwd();
+  let pasted=0;
+  clipboard.forEach(src=>{
+    if(!fs[src])return;
+    const name=src.split('/').pop();
+    // guard: can't paste a folder into itself or its own descendant
+    if(destDir===src||destDir.startsWith(src+'/')){
+      tp(`Skipped '${name}' — can't move a folder into itself`,'err');
+      return;
+    }
+    const newName=uniqueName(name);
+    const newPath=resolve(destDir,newName);
+    if(clipboardMode==='copy'){
+      copyPathDeep(src,newPath);
+    }else{
+      const srcPar=src.split('/').slice(0,-1).join('/')||'/';
+      const srcBase=src.split('/').pop();
+      movePath(src,newPath);
+      if(fs[srcPar])fs[srcPar].ch=(fs[srcPar].ch||[]).filter(c=>c!==srcBase);
+    }
+    if(fs[destDir])fs[destDir].ch=[...(fs[destDir].ch||[]),newName];
+    pasted++;
+  });
+  if(clipboardMode==='cut'){clipboard=[];clipboardMode=null;}
+  tp(`Pasted ${pasted} item${pasted!==1?'s':''} into ${destDir}`,'ok');
+  rFiles();upUI();
+}
+
+/* ── STARRED ── */
+let starred=new Set();
+function toggleStar(p){
+  if(starred.has(p))starred.delete(p);else starred.add(p);
+  rFiles();rSidebarRecents();
+}
+
+/* ── MANUAL TAGGING ── */
+const TAG_OPTIONS=[
+  {key:'work',label:'Work',icon:'ti-briefcase'},
+  {key:'docs',label:'Documents',icon:'ti-file-description'},
+  {key:'personal',label:'Personal',icon:'ti-user'},
+  {key:'media',label:'Media',icon:'ti-camera'},
+  {key:'archive',label:'Archive',icon:'ti-box'},
+  {key:'user',label:'None',icon:'ti-circle-dashed'},
+];
+let tagPickerPaths=[];
+function openTagPicker(paths){
+  tagPickerPaths=paths.filter(p=>fs[p]);
+  if(!tagPickerPaths.length)return;
+  const current=tagPickerPaths.length===1?(fs[tagPickerPaths[0]].tag||'user'):null;
+  document.getElementById('tag-picker-list').innerHTML=TAG_OPTIONS.map(t=>`
+    <div class="sb-item ${t.key===current?'active':''}" style="padding:8px 10px" onclick="applyTag('${t.key}')">
+      <i class="ti ${t.icon}"></i><span style="flex:1">${t.label}</span>
+      ${t.key===current?'<i class="ti ti-check" style="color:var(--accent)"></i>':''}
+    </div>`).join('');
+  openOv('tag-ov');
+}
+function applyTag(tagKey){
+  tagPickerPaths.forEach(p=>{
+    if(fs[p])fs[p].tag=tagKey;
+  });
+  closeOv('tag-ov');
+  tp(`Tagged ${tagPickerPaths.length} item${tagPickerPaths.length!==1?'s':''} as ${tagKey}`,'ok');
+  rFiles();
+}
+
+/* ── RECENTS ── */
+let recentFiles=[]; // most-recent-first array of paths
+function recordRecent(p){
+  const n=fs[p];if(!n||n.type==='dir')return;
+  recentFiles=recentFiles.filter(rp=>rp!==p);
+  recentFiles.unshift(p);
+  recentFiles=recentFiles.slice(0,8);
+  rSidebarRecents();
+}
+
+function rSidebarRecents(){
+  // starred
+  const starredValid=[...starred].filter(p=>fs[p]);
+  const starSec=document.getElementById('sb-starred-section');
+  const starList=document.getElementById('sb-starred-list');
+  if(starredValid.length){
+    starSec.style.display='';
+    starList.innerHTML=starredValid.map(p=>{
+      const name=p.split('/').pop();
+      const n=fs[p]||{};
+      const {icon,cls}=gi(name,n.type);
+      return`<div class="sb-item" onclick="opeFile('${escHtml(p)}')" title="${escHtml(p)}"><i class="ti ${icon} ${cls}"></i> ${escHtml(name)}</div>`;
+    }).join('');
+  }else{
+    starSec.style.display='none';starList.innerHTML='';
+  }
+  // recents
+  const recentValid=recentFiles.filter(p=>fs[p]);
+  const recSec=document.getElementById('sb-recent-section');
+  const recDiv=document.getElementById('sb-recent-divider');
+  const recList=document.getElementById('sb-recent-list');
+  if(recentValid.length){
+    recSec.style.display='';recDiv.style.display='';
+    recList.innerHTML=recentValid.map(p=>{
+      const name=p.split('/').pop();
+      const n=fs[p]||{};
+      const {icon,cls}=gi(name,n.type);
+      return`<div class="sb-item" onclick="opeFile('${escHtml(p)}')" title="${escHtml(p)}"><i class="ti ${icon} ${cls}"></i> ${escHtml(name)}</div>`;
+    }).join('');
+  }else{
+    recSec.style.display='none';recDiv.style.display='none';recList.innerHTML='';
+  }
+}
+
+
+function openOv(id){document.getElementById(id).classList.add('open');}
+function closeOv(id){document.getElementById(id).classList.remove('open');editPath=null;}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));hideCtxMenu();return;}
+  // ignore shortcuts while typing in an input/textarea or while a modal is open
+  const typing=['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+  const modalOpen=document.querySelector('.overlay.open');
+  if(typing||modalOpen)return;
+
+  // clipboard shortcuts work even with a single selection
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='x'&&sel.size){e.preventDefault();setClipboard([...sel],'cut');return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&sel.size){e.preventDefault();setClipboard([...sel],'copy');return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();doPaste();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'){e.preventDefault();selectAllInView();return;}
+
+  // arrow-key navigation through the current file list
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    const rows=[...document.querySelectorAll('#file-list .file-row')].map(r=>r.dataset.path);
+    if(!rows.length)return;
+    let idx=lastSel?rows.indexOf(lastSel):-1;
+    idx=e.key==='ArrowDown'?Math.min(idx+1,rows.length-1):Math.max(idx-1,0);
+    sel.clear();sel.add(rows[idx]);lastSel=rows[idx];
+    rFiles();upUI();
+    document.querySelector(`.file-row[data-path="${rows[idx].replace(/"/g,'\\"')}"]`)?.scrollIntoView({block:'nearest'});
+    return;
+  }
+  if(e.key==='Enter'&&lastSel&&sel.size===1){e.preventDefault();opeFile(lastSel);return;}
+
+  if(!sel.size)return;
+  if(e.key==='F2'&&sel.size===1){e.preventDefault();openRename([...sel][0]);}
+  else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();openDeleteConfirm([...sel]);}
+});
+
+function selectAllInView(){
+  const rows=[...document.querySelectorAll('#file-list .file-row')].map(r=>r.dataset.path);
+  if(!rows.length)return;
+  sel=new Set(rows);lastSel=rows[rows.length-1];
+  rFiles();upUI();
+}
+
+
+/* ── INIT ── */
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{if(!e.target.closest('#file-list'))e.preventDefault();});
+rTabs();rFiles();upUI();rSidebarRecents();
+</script>
+<!-- CONTEXT MENU -->
+<div id="ctx-menu"></div>
+
+</body>
+</html>
